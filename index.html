@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B3D91" />
+  <meta name="description" content="ShiftMate UK — offline rota & estimated pay for UK shift workers" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>ShiftMate UK</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Onboarding (shown when !onboardingComplete) -->
+  <section id="onboarding-screen" class="hidden">
+    <div class="hero">
+      <div class="logo">SM</div>
+      <h1>Welcome to ShiftMate UK</h1>
+      <p class="muted">Offline rota + estimated pay for care, NHS, security &amp; hospitality shifts.</p>
+    </div>
+    <div class="card">
+      <h2>Job setup</h2>
+      <label for="ob-employer">Employer name</label>
+      <input id="ob-employer" type="text" placeholder="e.g. Sunrise Care" autocomplete="organization" />
+
+      <div class="row-2">
+        <div>
+          <label for="ob-rate">Basic hourly rate (£)</label>
+          <input id="ob-rate" type="number" step="0.01" min="0" placeholder="12.21" />
+        </div>
+        <div>
+          <label for="ob-hours">Contracted hrs/week</label>
+          <input id="ob-hours" type="number" step="0.5" min="0" placeholder="37.5" />
+        </div>
+      </div>
+
+      <label for="ob-period">Pay period</label>
+      <select id="ob-period">
+        <option value="WEEKLY">Weekly</option>
+        <option value="FORTNIGHTLY">Fortnightly</option>
+        <option value="FOUR_WEEKLY">Four-weekly</option>
+        <option value="MONTHLY" selected>Monthly</option>
+      </select>
+
+      <label for="ob-payday">Reference payday</label>
+      <input id="ob-payday" type="date" />
+
+      <label for="ob-weekstart">Week starts on</label>
+      <select id="ob-weekstart">
+        <option value="MONDAY" selected>Monday</option>
+        <option value="SUNDAY">Sunday</option>
+        <option value="SATURDAY">Saturday</option>
+      </select>
+
+      <p class="disclaimer" style="margin-top:14px">Estimate only — not a payslip and not HMRC-accurate PAYE.</p>
+      <div class="btn-row">
+        <button type="button" class="btn block accent" id="ob-save">Save &amp; continue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main app shell -->
+  <div id="app-shell" class="hidden">
+    <header class="app-header">
+      <h1>ShiftMate UK</h1>
+      <div class="sub" id="header-sub">Local-only · offline</div>
+    </header>
+
+    <main>
+      <!-- HOME -->
+      <section id="screen-home" class="screen active">
+        <div id="home-unlock-banner" class="card warn-border hidden"></div>
+        <div class="card accent-border" id="dash-next">
+          <h2>Next shift</h2>
+          <p class="muted" id="dash-next-body">No upcoming shifts</p>
+        </div>
+
+        <div class="card">
+          <h2>This pay period</h2>
+          <p class="muted" id="dash-period-range">—</p>
+          <div class="stat-grid" style="margin-top:10px">
+            <div class="stat">
+              <div class="label">Scheduled hrs</div>
+              <div class="value" id="dash-sched-hrs">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Worked hrs</div>
+              <div class="value" id="dash-worked-hrs">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Overtime hrs</div>
+              <div class="value warn" id="dash-ot-hrs">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Sleep-ins</div>
+              <div class="value" id="dash-sleepins">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Expected gross</div>
+              <div class="value accent" id="dash-gross">£0.00</div>
+            </div>
+            <div class="stat">
+              <div class="label">Est. take-home</div>
+              <div class="value accent" id="dash-net">£0.00</div>
+            </div>
+          </div>
+          <p class="muted" style="margin-top:10px" id="dash-payday">Payday: —</p>
+          <p class="disclaimer">Estimate only — not a payslip and not HMRC-accurate PAYE.</p>
+        </div>
+
+        <div class="card" id="dash-deductions-card">
+          <h2>Deductions (estimate)</h2>
+          <div class="stat-grid">
+            <div class="stat"><div class="label">Tax</div><div class="value" id="dash-tax">£0.00</div></div>
+            <div class="stat"><div class="label">NI</div><div class="value" id="dash-ni">£0.00</div></div>
+            <div class="stat"><div class="label">Pension</div><div class="value" id="dash-pension">£0.00</div></div>
+            <div class="stat"><div class="label">Employer</div><div class="value" id="dash-employer" style="font-size:0.95rem">—</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROTA -->
+      <section id="screen-rota" class="screen">
+        <div class="cal-nav">
+          <button type="button" class="btn ghost sm" id="cal-prev" aria-label="Previous month">‹</button>
+          <h2 id="cal-title">Month</h2>
+          <button type="button" class="btn ghost sm" id="cal-next" aria-label="Next month">›</button>
+        </div>
+        <div class="cal-grid" id="cal-dows"></div>
+        <div class="cal-grid" id="cal-grid" style="margin-top:4px"></div>
+
+        <div id="rota-unlock-banner" class="card warn-border hidden"></div>
+        <div class="card" style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h2 id="day-title" style="margin:0">Day</h2>
+            <button type="button" class="btn accent sm" id="btn-add-shift">+ Add</button>
+          </div>
+          <div id="day-shifts"></div>
+        </div>
+
+        <div class="card" id="copy-week-card">
+          <h2>Copy week forward</h2>
+          <p class="muted" id="copy-week-summary">Select a day to copy its week.</p>
+          <label for="copy-week-n">Copy into the next N weeks</label>
+          <input id="copy-week-n" type="number" min="1" max="52" value="1" />
+          <div class="check-row">
+            <input type="checkbox" id="copy-week-skip" checked />
+            <label for="copy-week-skip">Skip dates that already have a shift</label>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-copy-week">Copy week</button>
+          </div>
+        </div>
+
+        <div class="card" id="pattern-card">
+          <h2>Repeating pattern</h2>
+          <p class="muted">Fill a date range from a cycle such as 4-on-4-off, or build your own.</p>
+          <div class="row-2">
+            <div>
+              <label for="pattern-start">From</label>
+              <input id="pattern-start" type="date" />
+            </div>
+            <div>
+              <label for="pattern-end">To</label>
+              <input id="pattern-end" type="date" />
+            </div>
+          </div>
+          <label for="pattern-preset">Pattern</label>
+          <select id="pattern-preset">
+            <option value="4-on-4-off" selected>4-on-4-off</option>
+            <option value="4-on-3-off">4-on-3-off</option>
+            <option value="5-on-2-off">5-on-2-off (weekdays)</option>
+            <option value="custom">Custom cycle</option>
+          </select>
+          <div id="pattern-on-type-wrap">
+            <label for="pattern-on-type">Shift type on working days</label>
+            <select id="pattern-on-type"></select>
+          </div>
+          <div id="pattern-custom-wrap" class="hidden">
+            <label>Custom cycle (repeats from the start date)</label>
+            <div id="pattern-custom-rows"></div>
+            <div class="btn-row">
+              <button type="button" class="btn ghost sm" id="btn-pattern-add-slot">+ Add day to cycle</button>
+            </div>
+          </div>
+          <div class="check-row">
+            <input type="checkbox" id="pattern-skip" checked />
+            <label for="pattern-skip">Skip dates that already have a shift</label>
+          </div>
+          <p class="muted" id="pattern-preview"></p>
+          <div class="btn-row">
+            <button type="button" class="btn" id="btn-apply-pattern">Apply pattern</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TYPES -->
+      <section id="screen-types" class="screen">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h2 style="margin:0">Shift types</h2>
+          <button type="button" class="btn accent sm" id="btn-add-type">+ Add</button>
+        </div>
+        <div class="card" id="types-list"></div>
+      </section>
+
+      <!-- JOB -->
+      <section id="screen-job" class="screen">
+        <div class="card">
+          <h2>Job profile</h2>
+          <label for="job-employer">Employer name</label>
+          <input id="job-employer" type="text" />
+
+          <div class="row-2">
+            <div>
+              <label for="job-rate">Basic hourly rate (£)</label>
+              <input id="job-rate" type="number" step="0.01" min="0" />
+            </div>
+            <div>
+              <label for="job-hours">Contracted hrs/week</label>
+              <input id="job-hours" type="number" step="0.5" min="0" />
+            </div>
+          </div>
+
+          <label for="job-period">Pay period</label>
+          <select id="job-period">
+            <option value="WEEKLY">Weekly</option>
+            <option value="FORTNIGHTLY">Fortnightly</option>
+            <option value="FOUR_WEEKLY">Four-weekly</option>
+            <option value="MONTHLY">Monthly</option>
+          </select>
+
+          <label for="job-payday">Reference payday</label>
+          <input id="job-payday" type="date" />
+
+          <label for="job-weekstart">Week starts on</label>
+          <select id="job-weekstart">
+            <option value="MONDAY">Monday</option>
+            <option value="SUNDAY">Sunday</option>
+            <option value="SATURDAY">Saturday</option>
+          </select>
+
+          <h3 style="margin-top:16px;font-size:1rem">Tax / NI / pension (estimate)</h3>
+          <div class="row-2">
+            <div>
+              <label for="job-allowance">Personal allowance (£)</label>
+              <input id="job-allowance" type="number" step="1" />
+            </div>
+            <div>
+              <label for="job-taxrate">Basic tax %</label>
+              <input id="job-taxrate" type="number" step="0.1" />
+            </div>
+          </div>
+          <div class="row-2">
+            <div>
+              <label for="job-ni">Employee NI %</label>
+              <input id="job-ni" type="number" step="0.1" />
+            </div>
+            <div>
+              <label for="job-nithresh">NI threshold (£/yr)</label>
+              <input id="job-nithresh" type="number" step="1" />
+            </div>
+          </div>
+          <label for="job-pension">Pension %</label>
+          <input id="job-pension" type="number" step="0.1" />
+
+          <p class="disclaimer">Estimate only — not a payslip and not HMRC-accurate PAYE.</p>
+          <div class="btn-row">
+            <button type="button" class="btn block" id="job-save">Save job</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Data</h2>
+          <p class="muted">All data stays in this browser (localStorage). No accounts, no backend.</p>
+          <div class="btn-row">
+            <button type="button" class="btn sm" id="btn-export-json">Export JSON</button>
+            <button type="button" class="btn sm secondary" id="btn-export-csv">Export CSV</button>
+            <button type="button" class="btn sm ghost" id="btn-import-json">Import JSON</button>
+            <input type="file" id="import-json-file" accept="application/json,.json" class="hidden" />
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn ghost danger sm" id="btn-reset">Reset all data</button>
+          </div>
+          <p class="muted" id="data-status"></p>
+        </div>
+      </section>
+
+      <!-- UNLOCK (shown only when UNLOCK_ENABLED) -->
+      <section id="screen-unlock" class="screen">
+        <div class="card accent-border" id="unlock-card">
+          <h2>Unlock ShiftMate</h2>
+          <p class="muted">A one-off purchase on this device. Data stays in your browser — no account required.</p>
+          <p class="price-tag"><span id="unlock-price">£4.99</span> <span class="muted" id="unlock-price-label">one-off</span></p>
+          <ul class="unlock-list">
+            <li>Full rota, not just the next 4 weeks</li>
+            <li>Full estimated pay breakdown, including take-home</li>
+          </ul>
+          <div class="btn-row">
+            <a class="btn accent" id="unlock-pay" href="#" rel="noopener noreferrer">Pay with Stripe</a>
+          </div>
+          <p class="muted" id="unlock-pay-note">After payment you’ll come back here and unlock automatically. If that doesn’t happen, paste the unlock code below.</p>
+          <label for="unlock-code">Unlock code</label>
+          <input id="unlock-code" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your code" />
+          <div class="btn-row">
+            <button type="button" class="btn" id="unlock-apply">Unlock</button>
+          </div>
+          <p class="muted" id="unlock-status"></p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Main">
+      <button type="button" data-tab="home" class="active"><span class="ico">⌂</span>Home</button>
+      <button type="button" data-tab="rota"><span class="ico">▦</span>Rota</button>
+      <button type="button" data-tab="types"><span class="ico">☰</span>Types</button>
+      <button type="button" data-tab="job"><span class="ico">⚙</span>Job</button>
+      <button type="button" data-tab="unlock" class="hidden"><span class="ico">★</span>Unlock</button>
+    </nav>
+  </div>
+
+  <!-- Shift modal -->
+  <div class="modal-backdrop" id="shift-modal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button type="button" class="modal-close" id="shift-modal-close" aria-label="Close">×</button>
+      <h2 id="shift-modal-title">Add shift</h2>
+      <input type="hidden" id="shift-id" />
+
+      <label for="shift-type">Shift type</label>
+      <select id="shift-type"></select>
+
+      <label for="shift-title">Title</label>
+      <input id="shift-title" type="text" />
+
+      <label for="shift-date">Calendar date</label>
+      <input id="shift-date" type="date" />
+
+      <div class="row-2">
+        <div>
+          <label for="shift-start">Scheduled start</label>
+          <input id="shift-start" type="datetime-local" />
+        </div>
+        <div>
+          <label for="shift-end">Scheduled end</label>
+          <input id="shift-end" type="datetime-local" />
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div>
+          <label for="shift-worked-start">Worked start</label>
+          <input id="shift-worked-start" type="datetime-local" />
+        </div>
+        <div>
+          <label for="shift-worked-end">Worked end</label>
+          <input id="shift-worked-end" type="datetime-local" />
+        </div>
+      </div>
+
+      <label for="shift-break">Unpaid break (minutes)</label>
+      <input id="shift-break" type="number" min="0" step="5" />
+
+      <label for="shift-leave">Leave type</label>
+      <select id="shift-leave">
+        <option value="NONE">None (worked / scheduled)</option>
+        <option value="SICKNESS">Sickness</option>
+        <option value="ANNUAL_LEAVE">Annual leave</option>
+        <option value="UNPAID_LEAVE">Unpaid leave</option>
+      </select>
+
+      <div class="check-row">
+        <input type="checkbox" id="shift-sleepin" />
+        <label for="shift-sleepin">Sleep-in</label>
+      </div>
+
+      <label for="shift-bh">Bank holiday override</label>
+      <select id="shift-bh">
+        <option value="">Auto (England &amp; Wales list)</option>
+        <option value="true">Force bank holiday</option>
+        <option value="false">Force not bank holiday</option>
+      </select>
+
+      <label for="shift-notes">Notes</label>
+      <textarea id="shift-notes" placeholder="Optional"></textarea>
+
+      <div id="shift-pay-preview" class="muted" style="margin-top:10px"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn accent" id="shift-save">Save</button>
+        <button type="button" class="btn ghost" id="shift-cancel">Cancel</button>
+        <button type="button" class="btn danger sm hidden" id="shift-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Type modal -->
+  <div class="modal-backdrop" id="type-modal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button type="button" class="modal-close" id="type-modal-close" aria-label="Close">×</button>
+      <h2 id="type-modal-title">Shift type</h2>
+      <input type="hidden" id="type-id" />
+
+      <label for="type-name">Name</label>
+      <input id="type-name" type="text" />
+
+      <div class="row-2">
+        <div>
+          <label for="type-start">Default start</label>
+          <input id="type-start" type="time" />
+        </div>
+        <div>
+          <label for="type-end">Default end</label>
+          <input id="type-end" type="time" />
+        </div>
+      </div>
+
+      <label for="type-break">Unpaid break (minutes)</label>
+      <input id="type-break" type="number" min="0" step="5" />
+
+      <label for="type-rate">Hourly rate override (£, blank = job rate)</label>
+      <input id="type-rate" type="number" step="0.01" min="0" placeholder="Inherit job rate" />
+
+      <div class="check-row">
+        <input type="checkbox" id="type-night" />
+        <label for="type-night">Night enhancement</label>
+      </div>
+      <div class="row-2">
+        <div>
+          <label for="type-night-start">Night start</label>
+          <input id="type-night-start" type="time" value="20:00" />
+        </div>
+        <div>
+          <label for="type-night-end">Night end</label>
+          <input id="type-night-end" type="time" value="06:00" />
+        </div>
+      </div>
+      <label for="type-night-rate">Night enhancement £/hr</label>
+      <input id="type-night-rate" type="number" step="0.01" min="0" />
+
+      <div class="check-row">
+        <input type="checkbox" id="type-sleep" />
+        <label for="type-sleep">Sleep-in enabled</label>
+      </div>
+      <label for="type-sleep-amt">Sleep-in fixed amount (£)</label>
+      <input id="type-sleep-amt" type="number" step="0.01" min="0" />
+
+      <label for="type-bh-mult">Bank holiday multiplier</label>
+      <input id="type-bh-mult" type="number" step="0.1" min="0" value="1" />
+
+      <div class="row-2">
+        <div>
+          <label for="type-ot-thresh">OT threshold (hrs)</label>
+          <input id="type-ot-thresh" type="number" step="0.5" min="0" placeholder="Optional" />
+        </div>
+        <div>
+          <label for="type-ot-mult">OT multiplier</label>
+          <input id="type-ot-mult" type="number" step="0.1" min="0" value="1.5" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn accent" id="type-save">Save</button>
+        <button type="button" class="btn ghost" id="type-cancel">Cancel</button>
+        <button type="button" class="btn danger sm hidden" id="type-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="pay.js"></script>
+  <script src="rota.js"></script>
+  <script src="unlock.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
