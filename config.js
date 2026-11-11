@@ -8,7 +8,7 @@
 
   global.ShiftMateConfig = {
     /** When false, nothing is gated and the Unlock tab is hidden. */
-    UNLOCK_ENABLED: false,
+    UNLOCK_ENABLED: true,
 
     UNLOCK_PRICE: '£4.99',
     UNLOCK_PRICE_LABEL: 'one-off',
@@ -19,7 +19,7 @@
      * app with ?unlocked=YOUR_CODE (example:
      * https://<user>.github.io/shiftmate-web/?unlocked=YOUR_CODE).
      */
-    STRIPE_PAYMENT_LINK: '',
+    STRIPE_PAYMENT_LINK: 'https://buy.stripe.com/test_7sYeVe5OM0Dq2MpapTeEo00',
 
     /**
      * Lowercase SHA-256 hex of the unlock code (the same code you put in
@@ -27,7 +27,7 @@
      *   node -e "crypto.subtle.digest('SHA-256', new TextEncoder().encode('YOUR_CODE')).then(b=>console.log(Buffer.from(b).toString('hex')))"
      * Leave empty until you choose a code.
      */
-    UNLOCK_CODE_SHA256: '',
+    UNLOCK_CODE_SHA256: '33898b6228f98c819e765f2510dda4949e0172de11341da656a4ea14080aec35',
 
     /** Free-tier rota cap, counted from today, when UNLOCK_ENABLED is true. */
     FREE_ROTA_WEEKS_AHEAD: 4,

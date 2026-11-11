@@ -1,5 +1,5 @@
 /* ShiftMate UK — basic offline cache for static assets */
-const CACHE = 'shiftmate-uk-v2';
+const CACHE = 'shiftmate-uk-v3';
 const ASSETS = [
   './',
   './index.html',
