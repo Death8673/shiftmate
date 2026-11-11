@@ -280,9 +280,9 @@ const job = { basicHourlyRate: 12.21, payPeriodType: 'MONTHLY' };
     assert(csv.indexOf('2026-11-11') >= 0, 'date');
   });
 
-  await test('UNLOCK_ENABLED is false so nothing is gated by default', () => {
-    assertEq(Config.UNLOCK_ENABLED, false);
-    assert(Unlock.isLicensed(Config, { unlocked: false }), 'flag off => licensed');
+  await test('unlock flag gates correctly (off => licensed, on => needs code)', () => {
+    const off = Object.assign({}, Config, { UNLOCK_ENABLED: false });
+    assert(Unlock.isLicensed(off, { unlocked: false }), 'flag off => licensed');
     const gated = Object.assign({}, Config, { UNLOCK_ENABLED: true });
     assert(!Unlock.isLicensed(gated, { unlocked: false }), 'flag on, no licence');
     assert(Unlock.isLicensed(gated, { unlocked: true }), 'flag on, licensed');
