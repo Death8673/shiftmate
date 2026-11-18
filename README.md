@@ -42,38 +42,11 @@ Includes the desk check: a Day shift 07:00–15:00 at £12.21 with a 30-minute u
 
 All asset URLs, the manifest `start_url` / `scope`, and the service worker registration are **relative**, so the app works at the domain root or under a subpath such as `/shiftmate-web/`. The empty `.nojekyll` file stops GitHub Pages from running Jekyll on the folder.
 
-## Paid unlock (scaffold, off by default)
+## Web checkout
 
-Payments are designed as a **Stripe Payment Link** plus a static-site unlock — no backend, so it can stay on GitHub Pages.
+All web features are available while checkout is disabled. `config.js` keeps `UNLOCK_ENABLED` set to `false` and leaves the payment link and prototype unlock hash empty. `node test.js` exercises the original unlock scaffold with test values.
 
-Config lives in `config.js`:
-
-| Constant | Default | Role |
-|----------|---------|------|
-| `UNLOCK_ENABLED` | `false` | Master flag. While false, **nothing is gated** and the Unlock tab is hidden. |
-| `UNLOCK_PRICE` | `£4.99` | One-off price shown on the Unlock screen. |
-| `STRIPE_PAYMENT_LINK` | `''` | Your Payment Link, e.g. `https://buy.stripe.com/xxxx`. |
-| `UNLOCK_CODE_SHA256` | `''` | Lowercase SHA-256 hex of the unlock code. |
-| `FREE_ROTA_WEEKS_AHEAD` | `4` | Free-tier rota cap (from today) once the flag is on. |
-
-When you are ready to charge:
-
-1. Create a Stripe Payment Link for £4.99 one-off (no account is created by this app).
-2. Choose an unlock code and hash it:
-
-   ```bash
-   node -e "crypto.subtle.digest('SHA-256', new TextEncoder().encode('YOUR_CODE')).then(b=>console.log(Buffer.from(b).toString('hex')))"
-   ```
-
-3. In the Stripe dashboard, set the after-payment success URL to this app with that code, for example:
-
-   `https://<user>.github.io/shiftmate-web/?unlocked=YOUR_CODE`
-
-4. Put the Payment Link in `STRIPE_PAYMENT_LINK`, the hash in `UNLOCK_CODE_SHA256`, then set `UNLOCK_ENABLED` to `true`.
-
-After payment, Stripe redirects back with `?unlocked=`; the app hashes the code, compares it to `UNLOCK_CODE_SHA256`, stores a licence flag in `localStorage`, and strips the code from the address. The user can also paste the code on the Unlock screen. The licence stays on that browser only.
-
-While the flag is on and the device is not unlocked, the rota cannot add shifts more than 4 weeks ahead, and the full pay breakdown (gross, take-home, deductions, shift £ totals) stays locked.
+The original test flow granted access using a shared code and saved it in the current browser. Live checkout needs verified Stripe payment events and a way for customers to restore their purchases. The static app can stay on GitHub Pages while a separate service verifies purchases.
 
 ## Files
 
@@ -99,8 +72,8 @@ No npm / build step. Vanilla JS.
 - Single job only (same as Android MVP intent); no multi-job.
 - Take-home is the same simplified annualise → basic-rate tax / NI / pension model (not full PAYE).
 - Bank holidays: fixed England & Wales sample list (2025–2027), same approach as Android.
-- Night-overlap scan uses one night window per calendar day (avoids a midnight double-count that the Kotlin dual-window loop can hit); paid minutes / BH / OT / sleep-in match the Android rules.
-- Unlock is a static-site scaffold (Stripe Payment Link + code). It is not Play Billing, and it is switched off until you set `UNLOCK_ENABLED`.
+- Paid minutes, night enhancement, bank holidays, overtime and sleep-ins follow the Android rules.
+- Web checkout is disabled. Android uses Google Play Billing.
 
 ## Licence / product note
 
